@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>加減乘除 (非對稱暴走版)</title>
+    <style>
+        :root {
+            --primary: #4e54c8;
+            --primary-dark: #3a4099;
+            --accent: #ff6b6b;
+            --gold: #f1c40f;
+            --danger: #e74c3c;
+            --info: #3498db;
+            --bg-body: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #2d3436;
+            --text-sub: #636e72;
+            --lcd-bg: #2d3436;
+            --lcd-text: #55efc4;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 450px;
+            padding-bottom: 30px;
+        }
+
+        /* --- Header --- */
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+            padding: 10px 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .header-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header-label {
+            font-size: 0.75rem;
+            color: var(--text-sub);
+        }
+
+        .header-value {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .status-container {
+            display: flex;
+            gap: 5px;
+        }
+
+        .status-badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .st-fire {
+            background: #ffeaa7;
+            color: #d35400;
+            border: 1px solid #f39c12;
+        }
+
+        .st-sleep {
+            background: #dfe6e9;
+            color: #636e72;
+            border: 1px solid #b2bec3;
+        }
+
+        /* --- Cards --- */
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            margin: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            transition: border 0.3s, box-shadow 0.3s;
+        }
+
+        /* 加乘暴走特效 */
+        .card-frenzy-add {
+            border: 2px solid var(--gold);
+            box-shadow: 0 0 15px rgba(241, 196, 15, 0.3);
+        }
+
+        /* 減除暴走特效 */
+        .card-frenzy-sub {
+            border: 2px solid var(--info);
+            box-shadow: 0 0 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .setup-box {
+            margin-top: 20vh;
+            text-align: center;
+        }
+
+        .setup-box h1 {
+            margin-bottom: 5px;
+            color: var(--primary);
+        }
+
+        .setup-box p {
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 30px;
+        }
+
+        /* --- LCD Screen --- */
+        .lcd-screen {
+            background: var(--lcd-bg);
+            color: var(--lcd-text);
+            padding: 15px 20px;
+            margin: 0;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+            text-align: right;
+            position: relative;
+            transition: background-color 0.3s;
+        }
+
+        .game-lcd {
+            width: 100%;
+        }
+
+        .expr-line {
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            opacity: 0.8;
+            white-space: nowrap;
+            overflow-x: auto;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .result-line {
+            font-size: 2.2rem;
+            font-weight: bold;
+            display: block;
+            line-height: 1.2;
+        }
+
+        /* --- UI Elements --- */
+        .player-info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .player-badge {
+            background: var(--primary);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        /* 特殊狀態標籤 */
+        .bonus-badge {
+            color: white;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 12px;
+            margin-left: 8px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            display: none;
+            animation: pulse 1.5s infinite;
+        }
+
+        /* 加乘隊雙骰 */
+        .badge-double {
+            background: linear-gradient(135deg, #f1c40f 0%, #f39c12 100%);
+            display: inline-block;
+        }
+
+        /* 減除隊自由選 */
+        .badge-free {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            display: inline-block;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .op-hint {
+            font-size: 0.8rem;
+            color: #999;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+
+        input[type="number"] {
+            flex: 1;
+            padding: 12px;
+            font-size: 1.5rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            text-align: center;
+            outline: none;
+            appearance: textfield;
+            -moz-appearance: textfield;
+        }
+
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type="number"]:focus {
+            border-color: var(--primary);
+            background: #fdfdff;
+        }
+
+        .used-nums-display {
+            font-size: 0.85rem;
+            color: #e74c3c;
+            text-align: center;
+            margin-bottom: 15px;
+            min-height: 1.2em;
+        }
+
+        .op-row {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+
+        .op-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 1px solid #e0e0e0;
+            background: #fff;
+            color: #555;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .op-btn.selected {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            transform: scale(1.15);
+            box-shadow: 0 4px 10px rgba(78, 84, 200, 0.3);
+        }
+
+        /* 雙骰加成按鈕 */
+        .op-btn.selected.bonus-double {
+            background: var(--gold);
+            border-color: var(--gold);
+            box-shadow: 0 0 15px rgba(241, 196, 15, 0.6);
+        }
+
+        /* 自由選加成按鈕 */
+        .op-btn.bonus-free {
+            border-color: #3498db;
+            color: #3498db;
+            font-weight: bold;
+        }
+
+        .op-btn.selected.bonus-free {
+            background: #3498db;
+            color: white;
+            box-shadow: 0 0 15px rgba(52, 152, 219, 0.6);
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--primary);
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(78, 84, 200, 0.3);
+            transition: background 0.3s;
+        }
+
+        .action-btn:active {
+            transform: scale(0.98);
+        }
+
+        .action-btn:disabled {
+            background: #b2bec3;
+            box-shadow: none;
+        }
+
+        .action-btn.bonus-btn {
+            background: linear-gradient(135deg, #f1c40f 0%, #d35400 100%);
+        }
+
+        /* --- 骰子區域 --- */
+        #dice-container {
+            height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 15px;
+            gap: 15px;
+        }
+
+        .dice-box {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border: 3px solid var(--text-main);
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            font-weight: bold;
+            box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.8);
+        }
+
+        .rolling {
+            animation: shake 0.2s infinite;
+            background: #ffeaa7 !important;
+        }
+
+        .dice-finished {
+            background: #fffa65 !important;
+            transform: scale(1.1);
+        }
+
+        @keyframes shake {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            25% {
+                transform: rotate(5deg);
+            }
+
+            75% {
+                transform: rotate(-5deg);
+            }
+
+            100% {
+                transform: rotate(0deg);
+            }
+        }
+
+        /* --- Logs & Toast --- */
+        .log-section {
+            margin: 0 15px;
+            border-radius: 12px;
+            background: #eef2f5;
+            overflow: hidden;
+        }
+
+        .log-header {
+            padding: 12px 15px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #555;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .log-content {
+            max-height: 0;
+            overflow-y: auto;
+            transition: max-height 0.3s ease-out;
+            background: #fff;
+        }
+
+        .log-content.open {
+            max-height: 200px;
+        }
+
+        .log-entry {
+            padding: 8px 15px;
+            font-size: 0.85rem;
+            border-bottom: 1px solid #f0f0f0;
+            color: #666;
+        }
+
+        .arrow-icon {
+            transition: transform 0.3s;
+            font-size: 0.8rem;
+        }
+
+        .open .arrow-icon {
+            transform: rotate(180deg);
+        }
+
+        #toast-msg {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 20px 30px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            text-align: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            width: 80%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        #toast-msg.show {
+            opacity: 1;
+        }
+
+        .result-screen-content {
+            padding: 20px;
+            text-align: center;
+        }
+
+        .winner-text {
+            font-size: 1.8rem;
+            margin: 20px 0;
+            font-weight: 800;
+        }
+
+        .result-stats {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            flex: 1;
+            background: #fff;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #eee;
+        }
+
+        .stat-title {
+            font-size: 0.8rem;
+            color: #888;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .stat-num {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app-container">
+
+        <div id="toast-msg"></div>
+
+        <div id="setup-screen" class="setup-box">
+            <div class="card">
+                <h1>🎲 加減乘除</h1>
+                <p>輸入目標四位數開始挑戰</p>
+                <input type="number" id="target-input" placeholder="例如: 2486" value="2486" style="margin-bottom: 20px;">
+                <button class="action-btn" onclick="startGame()">開始遊戲</button>
+            </div>
+        </div>
+
+        <div id="game-screen" class="hidden">
+
+            <div class="sticky-header">
+                <div class="header-item">
+                    <span class="header-label">目標 Target</span>
+                    <span class="header-value" id="target-display">0</span>
+                </div>
+                <div class="header-item" style="align-items: flex-end;">
+                    <span class="header-label">輪次 Round</span>
+                    <div style="display:flex; flex-direction:column; align-items:flex-end;">
+                        <span class="header-value" id="round-display">1 / 15</span>
+                        <div id="status-badges" class="status-container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lcd-screen game-lcd" id="lcd-bg">
+                <span class="expr-line" id="expression-display">0</span>
+                <span class="result-line" id="current-eval-lcd">0</span>
+            </div>
+
+            <div class="card" id="turn-ui">
+                <div class="player-info-bar" id="player-badge-container">
+                    <div>
+                        <span id="current-player-name" class="player-badge">玩家 1</span>
+                        <span id="badge-double" class="bonus-badge badge-double">🔥雙骰火力</span>
+                        <span id="badge-free" class="bonus-badge badge-free">🔓自由選擇</span>
+                    </div>
+                    <span id="op-hint" class="op-hint">預設: +</span>
+                </div>
+
+                <div class="input-row">
+                    <input type="number" id="player-num-input" placeholder="1-9" pattern="\d*" inputmode="numeric"
+                        min="1" max="9">
+                </div>
+
+                <div id="used-nums-display" class="used-nums-display"></div>
+
+                <div class="op-row" id="op-buttons-container">
+                </div>
+
+                <div id="dice-container" class="hidden">
+                    <div id="dice-visual-1" class="dice-box">?</div>
+                    <div id="dice-visual-2" class="dice-box hidden">?</div>
+                </div>
+
+                <button id="submit-btn" class="action-btn" onclick="startDiceAnimation()">擲骰並計算</button>
+            </div>
+
+            <div class="log-section">
+                <div class="log-header" onclick="toggleLog()">
+                    <span>📜 戰況紀錄</span>
+                    <span class="arrow-icon">▼</span>
+                </div>
+                <div class="log-content" id="log-content-area">
+                </div>
+            </div>
+        </div>
+
+        <div id="result-screen" class="hidden">
+            <div class="result-screen-content">
+                <h2>遊戲結束</h2>
+
+                <div class="card" style="background:#f9f9f9; text-align: right; margin: 0 0 20px 0;">
+                    <span style="display:block; font-size:0.9rem; color:#888;">最終算式</span>
+                    <span id="final-expression"
+                        style="font-family:'Courier New'; display:block; word-break:break-all; margin-bottom:10px;"></span>
+                    <span style="display:block; font-size:0.9rem; color:#888;">最終結果</span>
+                    <span id="final-value" style="font-size:2rem; font-weight:bold; color:var(--primary);"></span>
+                </div>
+
+                <div id="winner-announce" class="winner-text"></div>
+
+                <div class="result-stats">
+                    <div class="stat-card" style="border-color: #ff6b6b;">
+                        <span class="stat-title" style="color:#ff6b6b">加乘隊 (距目標)</span>
+                        <span class="stat-num" id="diff-target">0</span>
+                    </div>
+                    <div class="stat-card" style="border-color: #4e54c8;">
+                        <span class="stat-title" style="color:#4e54c8">減除隊 (距 0)</span>
+                        <span class="stat-num" id="diff-zero">0</span>
+                    </div>
+                </div>
+
+                <button class="action-btn" onclick="location.reload()">再玩一次</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- 音效 ---
+        const diceSound = new Audio('dice.mp3');
+
+        // --- 全域變數 ---
+        let target = 0;
+        let totalRounds = 15; // 固定 15 輪
+        let currentRound = 1;
+        let expression = "0";
+        let currentValue = 0;
+
+        let turnQueue = [];
+        let currentTurn = null;
+        let usedNumbersInRound = [];
+
+        // ★ 暴走模式開關
+        let permanentBonusActive = false;
+
+        const players = ["玩家 1", "玩家 2", "玩家 3", "玩家 4"];
+        const initialRoles = ['+', '-', '*', '/'];
+        let diceInterval = null;
+
+        // --- UI Helpers ---
+        function toggleLog() {
+            const content = document.getElementById('log-content-area');
+            const header = document.querySelector('.log-section');
+            content.classList.toggle('open');
+            header.classList.toggle('open');
+        }
+
+        function log(msg) {
+            const logArea = document.getElementById('log-content-area');
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.innerHTML = msg;
+            logArea.insertBefore(div, logArea.firstChild);
+        }
+
+        function updateUsedNumsUI() {
+            const div = document.getElementById('used-nums-display');
+            if (usedNumbersInRound.length === 0) {
+                div.textContent = "";
+            } else {
+                div.textContent = "🚫 本輪已選: " + usedNumbersInRound.join(", ");
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast-msg');
+            toast.innerHTML = msg;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function updateRoundHeader() {
+            document.getElementById('round-display').textContent = `${currentRound} / ${totalRounds}`;
+            const container = document.getElementById('status-badges');
+            container.innerHTML = '';
+
+            if (permanentBonusActive) {
+                // 加乘隊永久無CD
+                const b1 = document.createElement('span');
+                b1.className = "status-badge st-fire";
+                b1.textContent = "🔥加乘暴走";
+                container.appendChild(b1);
+
+                // 減除隊偶數輪有效
+                const isSubDivActive = (currentRound % 2 === 0);
+                const b2 = document.createElement('span');
+                if (isSubDivActive) {
+                    b2.className = "status-badge st-fire";
+                    b2.textContent = "🔥減除暴走";
+                } else {
+                    b2.className = "status-badge st-sleep";
+                    b2.textContent = "💤減除CD";
+                }
+                container.appendChild(b2);
+            }
+        }
+
+        // --- Game Logic ---
+        function roll() { return Math.floor(Math.random() * 6) + 1; }
+        function teammateOf(idx) { return (idx + 2) % 4; }
+        function safeEval(expr) {
+            try {
+                if (/[^0-9+\-*/().\s]/.test(expr)) return 0;
+                return eval(expr);
+            } catch (e) { return 0; }
+        }
+
+        function startGame() {
+            const input = document.getElementById('target-input').value;
+            if (!input) return alert("請輸入目標數字");
+            target = parseInt(input);
+
+            totalRounds = 15; // 固定
+
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+
+            document.getElementById('target-display').textContent = target;
+
+            log(`遊戲開始！目標: ${target}`);
+            log(`規則: 固定 15 輪`);
+
+            expression = "0";
+            currentValue = 0;
+            currentRound = 1;
+            permanentBonusActive = false;
+
+            startRound();
+        }
+
+        function startRound() {
+            if (currentRound > totalRounds) {
+                endGame();
+                return;
+            }
+
+            updateRoundHeader();
+            log(`--- 第 ${currentRound} 輪 ---`);
+
+            usedNumbersInRound = [];
+            updateUsedNumsUI();
+
+            let roleOrder, executeOrder, freeChoicePlayers;
+
+            if (currentRound % 2 !== 0) {
+                roleOrder = [...initialRoles];
+                executeOrder = [0, 1, 2, 3];
+                freeChoicePlayers = (currentRound > 1) ? [0, 1] : [];
+            } else {
+                roleOrder = [...initialRoles].reverse();
+                executeOrder = [3, 2, 1, 0];
+                freeChoicePlayers = [3, 2];
+            }
+
+            turnQueue = [];
+            let pDefaultOp = {};
+            executeOrder.forEach((pIdx, pos) => {
+                pDefaultOp[pIdx] = roleOrder[pos];
+            });
+
+            executeOrder.forEach((pIdx, pos) => {
+                let myDefault = roleOrder[pos];
+                let mateIdx = teammateOf(pIdx);
+                let mateDefault = pDefaultOp[mateIdx];
+                let canSwitch = freeChoicePlayers.includes(pIdx);
+
+                turnQueue.push({
+                    playerIdx: pIdx,
+                    playerName: players[pIdx],
+                    defaultOp: myDefault,
+                    mateOp: mateDefault,
+                    canSwitch: canSwitch
+                });
+            });
+
+            nextTurn();
+        }
+
+        function nextTurn() {
+            if (turnQueue.length === 0) {
+                currentRound++;
+                startRound();
+                return;
+            }
+
+            currentTurn = turnQueue.shift();
+            renderTurnUI();
+
+            // 重置骰子顯示
+            document.getElementById('dice-container').classList.add('hidden');
+            document.getElementById('dice-visual-1').className = 'dice-box';
+            document.getElementById('dice-visual-1').textContent = '?';
+            document.getElementById('dice-visual-2').className = 'dice-box hidden';
+        }
+
+        function renderTurnUI() {
+            const pIdx = currentTurn.playerIdx;
+            const pName = currentTurn.playerName;
+            const defaultOp = currentTurn.defaultOp;
+            const mateOp = currentTurn.mateOp;
+            const canSwitch = currentTurn.canSwitch;
+
+            document.getElementById('current-player-name').textContent = pName;
+            const numInput = document.getElementById('player-num-input');
+            numInput.value = "";
+
+            // 介面重置
+            const badgeDouble = document.getElementById('badge-double');
+            const badgeFree = document.getElementById('badge-free');
+            const card = document.getElementById('turn-ui');
+            const submitBtn = document.getElementById('submit-btn');
+
+            badgeDouble.style.display = 'none';
+            badgeFree.style.display = 'none';
+            card.className = "card"; // reset
+            submitBtn.classList.remove('bonus-btn');
+
+            const btnContainer = document.getElementById('op-buttons-container');
+            btnContainer.innerHTML = '';
+            const hintEl = document.getElementById('op-hint');
+
+            let opsToShow = [defaultOp];
+            let hintText = `預設: ${defaultOp}`;
+
+            if (canSwitch && mateOp && mateOp !== defaultOp) {
+                opsToShow.push(mateOp);
+                hintText = `可換: ${mateOp}`;
+            }
+
+            // --- ★ 分流暴走模式邏輯 ---
+            let isAddMulTeam = (defaultOp === '+' || defaultOp === '*');
+            let isSubDivTeam = (defaultOp === '-' || defaultOp === '/');
+
+            // 加乘隊：永久暴走
+            let frenzyAddMul = permanentBonusActive;
+
+            // 減除隊：偶數輪有效
+            let frenzySubDiv = permanentBonusActive && (currentRound % 2 === 0);
+
+            if (frenzyAddMul && isAddMulTeam) {
+                card.classList.add('card-frenzy-add');
+                badgeDouble.style.display = 'inline-block';
+                submitBtn.classList.add('bonus-btn');
+            }
+            else if (frenzySubDiv && isSubDivTeam) {
+                card.classList.add('card-frenzy-sub');
+                badgeFree.style.display = 'inline-block';
+                // 強制加入 - 和 /
+                if (!opsToShow.includes('-')) opsToShow.push('-');
+                if (!opsToShow.includes('/')) opsToShow.push('/');
+                hintText = "暴走中: 自由切換";
+            }
+
+            // --- 0分特權 (保留) ---
+            if (currentValue === 0) {
+                if (pIdx === 2 && !opsToShow.includes('+')) {
+                    opsToShow.push('+');
+                    hintText += " (特權+)";
+                }
+                if (pIdx === 3 && !opsToShow.includes('-')) {
+                    opsToShow.push('-');
+                    hintText += " (特權-)";
+                }
+            }
+
+            // 去除重複並生成按鈕
+            let uniqueOps = [...new Set(opsToShow)];
+            const opOrder = ['+', '-', '*', '/'];
+            uniqueOps.sort((a, b) => opOrder.indexOf(a) - opOrder.indexOf(b));
+
+            uniqueOps.forEach((op, index) => {
+                const btn = document.createElement('div');
+                btn.textContent = op;
+                btn.className = 'op-btn';
+
+                // 標記自由選的按鈕樣式
+                if (frenzySubDiv && isSubDivTeam && (op === '-' || op === '/')) {
+                    btn.classList.add('bonus-free');
+                }
+
+                // 修正 click handler 傳遞正確參數
+                btn.onclick = () => selectOp(op, btn, frenzyAddMul);
+                if (index === 0) {
+                    selectOp(op, btn, frenzyAddMul);
+                }
+                btnContainer.appendChild(btn);
+            });
+
+            setTimeout(() => {
+                const firstBtn = btnContainer.querySelector('.op-btn');
+                if (firstBtn && !window.selectedOp) selectOp(uniqueOps[0], firstBtn, frenzyAddMul);
+            }, 0);
+
+            hintEl.textContent = hintText;
+        }
+
+        function selectOp(op, btnElement, frenzyAddMul) {
+            window.selectedOp = op;
+
+            document.querySelectorAll('.op-btn').forEach(b => {
+                b.classList.remove('selected');
+                b.classList.remove('bonus-double');
+            });
+
+            btnElement.classList.add('selected');
+
+            // 如果是加乘暴走且選到 +/*，則按鈕發光
+            if (frenzyAddMul && (op === '+' || op === '*')) {
+                btnElement.classList.add('bonus-double');
+            }
+        }
+
+        // --- 擲骰與動畫 ---
+        function startDiceAnimation() {
+            const numInput = document.getElementById('player-num-input');
+            const num = parseInt(numInput.value);
+            if (isNaN(num) || num < 1 || num > 9) {
+                alert("請輸入 1~9 的整數");
+                return;
+            }
+
+            if (usedNumbersInRound.includes(num)) {
+                alert(`⚠️ 數字 ${num} 這一輪已經被別人用過了！\n請選擇其他數字。`);
+                numInput.value = "";
+                return;
+            }
+
+            usedNumbersInRound.push(num);
+            updateUsedNumsUI();
+
+            // ★ 雙骰條件：暴走開啟 + 選的是 + 或 * (無CD)
+            const op = window.selectedOp;
+            const useDoubleDice = permanentBonusActive && (op === '+' || op === '*');
+
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = useDoubleDice ? "🎲🎲 暴走雙骰..." : "🎲 擲骰中...";
+
+            const diceContainer = document.getElementById('dice-container');
+            const dice1 = document.getElementById('dice-visual-1');
+            const dice2 = document.getElementById('dice-visual-2');
+
+            diceContainer.classList.remove('hidden');
+            dice1.classList.add('rolling');
+            dice1.classList.remove('dice-finished');
+
+            if (useDoubleDice) {
+                dice2.classList.remove('hidden');
+                dice2.classList.add('rolling');
+                dice2.classList.remove('dice-finished');
+            } else {
+                dice2.classList.add('hidden');
+            }
+
+            diceSound.currentTime = 0;
+            diceSound.play().catch(e => { });
+
+            let frames = 0;
+            const totalFrames = 15;
+
+            if (diceInterval) clearInterval(diceInterval);
+            diceInterval = setInterval(() => {
+                dice1.textContent = Math.floor(Math.random() * 6) + 1;
+                if (useDoubleDice) {
+                    dice2.textContent = Math.floor(Math.random() * 6) + 1;
+                }
+                frames++;
+                if (frames >= totalFrames) {
+                    clearInterval(diceInterval);
+                    finishAnimation(num, submitBtn, dice1, dice2, useDoubleDice);
+                }
+            }, 80);
+        }
+
+        function finishAnimation(playerNum, submitBtn, dice1, dice2, useDoubleDice) {
+            dice1.classList.remove('rolling');
+            dice2.classList.remove('rolling');
+
+            const op = window.selectedOp;
+            let d1, d2, totalD, operand;
+
+            while (true) {
+                d1 = roll();
+                if (useDoubleDice) {
+                    d2 = roll();
+                    totalD = d1 * d2; // ★ 相乘
+                } else {
+                    totalD = d1;
+                }
+
+                operand = playerNum * totalD;
+
+                // 防呆 /0
+                if (op === '/' && operand === 0) {
+                    continue;
+                }
+                break;
+            }
+
+            dice1.textContent = d1;
+            dice1.classList.add('dice-finished');
+
+            if (useDoubleDice) {
+                dice2.textContent = d2;
+                dice2.classList.add('dice-finished');
+            }
+
+            setTimeout(() => {
+                submitBtn.disabled = false;
+                submitBtn.textContent = "擲骰並計算";
+                let displayDice2 = useDoubleDice ? d2 : null;
+                processTurnLogic(playerNum, op, d1, displayDice2, totalD, operand, useDoubleDice);
+            }, 800);
+        }
+
+        function processTurnLogic(num, op, d1, d2, totalD, operand, wasDouble) {
+            const pName = currentTurn.playerName;
+
+            let diceMsg;
+            if (wasDouble) {
+                diceMsg = `🎲(${d1}x${d2}=${totalD})`;
+            } else {
+                diceMsg = `🎲${totalD}`;
+            }
+
+            log(`${pName}: ${num} x ${diceMsg} = ${operand} (${op})`);
+
+            expression += ` ${op} ${operand}`;
+
+            try {
+                currentValue = safeEval(expression);
+
+                // --- 觸底歸零機制 ---
+                if (currentValue < 0) {
+                    currentValue = 0;
+                    expression = "0";
+
+                    document.getElementById('lcd-bg').style.backgroundColor = "#e74c3c";
+                    setTimeout(() => {
+                        document.getElementById('lcd-bg').style.backgroundColor = "";
+                    }, 400);
+
+                    if (!permanentBonusActive) {
+                        permanentBonusActive = true;
+                        showToast("📉 觸底歸零！<br>🔥 限制解除：加乘永久雙骰，減除偶數輪自由選！");
+                        log("<span style='color:#e74c3c; font-weight:bold'>🔥 暴走開啟！</span>");
+                        // 立即更新狀態
+                        updateRoundHeader();
+                    } else {
+                        showToast("📉 觸底歸零！");
+                        log("⚠️ 數值 < 0，再次歸零！");
+                    }
+                }
+
+            } catch (e) {
+                log(`Err: ${e}`);
+            }
+
+            document.getElementById('expression-display').textContent = expression;
+            const exprBox = document.getElementById('expression-display');
+            exprBox.scrollLeft = exprBox.scrollWidth;
+
+            document.getElementById('current-eval-lcd').textContent = Math.round(currentValue * 100) / 100;
+
+            nextTurn();
+        }
+
+        function endGame() {
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+
+            document.getElementById('final-expression').textContent = expression;
+            document.getElementById('final-value').textContent = Math.round(currentValue * 100) / 100;
+
+            const d_addmul = Math.abs(currentValue - target);
+            const d_subdiv = Math.abs(currentValue);
+
+            document.getElementById('diff-target').textContent = Math.round(d_addmul * 100) / 100;
+            document.getElementById('diff-zero').textContent = Math.round(d_subdiv * 100) / 100;
+
+            const winnerEl = document.getElementById('winner-announce');
+            if (d_addmul < d_subdiv) {
+                winnerEl.textContent = "🎉 加乘隊獲勝！";
+                winnerEl.style.color = "#ff6b6b";
+            } else if (d_addmul > d_subdiv) {
+                winnerEl.textContent = "🎉 減除隊獲勝！";
+                winnerEl.style.color = "#4e54c8";
+            } else {
+                winnerEl.textContent = "🤝 平手！";
+                winnerEl.style.color = "#333";
+            }
+        }
+    </script>
+
+</body>
+
+</html>
